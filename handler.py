@@ -10,6 +10,9 @@ from diffusers.utils import export_to_video
 
 os.environ["HF_HOME"] = "/runpod-volume/huggingface-cache"
 
+# Model config
+MODEL_ID = os.environ.get("MODEL_ID", "thudm/cogvideox-2b")
+
 # S3 config from env
 S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
 S3_ENDPOINT = os.environ.get("S3_ENDPOINT_URL")
@@ -36,7 +39,8 @@ def get_s3_client():
 
 def diagnose_cache():
     hf_home = os.environ.get("HF_HOME", "/runpod-volume/huggingface-cache")
-    repo_dir = os.path.join(hf_home, "hub", "models--THUDM--CogVideoX-2b")
+    safe_id = MODEL_ID.replace("/", "--")
+    repo_dir = os.path.join(hf_home, "hub", f"models--{safe_id}")
     snapshot_dir = os.path.join(repo_dir, "snapshots")
     refs_dir = os.path.join(repo_dir, "refs")
 
@@ -93,9 +97,9 @@ def load_pipeline():
     global pipe
     if pipe is None:
         diagnose_cache()
-        print("Loading CogVideoX-2B pipeline...")
+        print(f"Loading CogVideoX-2B pipeline from {MODEL_ID}...")
         pipe = CogVideoXPipeline.from_pretrained(
-            "THUDM/CogVideoX-2b",
+            MODEL_ID,
             torch_dtype=torch.float16,
             local_files_only=True,
         )
