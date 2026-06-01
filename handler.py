@@ -41,6 +41,7 @@ def load_pipeline():
         pipe = CogVideoXPipeline.from_pretrained(
             "THUDM/CogVideoX-2b",
             torch_dtype=torch.float16,
+            local_files_only=True,
         )
         pipe.to("cuda")
         pipe.vae.enable_slicing()
