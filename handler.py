@@ -36,7 +36,7 @@ def get_s3_client():
 
 def diagnose_cache():
     hf_home = os.environ.get("HF_HOME", "/runpod-volume/huggingface-cache")
-    repo_dir = os.path.join(hf_home, "hub", "models--zai-org--CogVideoX-2b")
+    repo_dir = os.path.join(hf_home, "hub", "models--THUDM--CogVideoX-2b")
     snapshot_dir = os.path.join(repo_dir, "snapshots")
     refs_dir = os.path.join(repo_dir, "refs")
 
@@ -95,7 +95,7 @@ def load_pipeline():
         diagnose_cache()
         print("Loading CogVideoX-2B pipeline...")
         pipe = CogVideoXPipeline.from_pretrained(
-            "zai-org/CogVideoX-2b",
+            "THUDM/CogVideoX-2b",
             torch_dtype=torch.float16,
             local_files_only=True,
         )
