@@ -21,7 +21,8 @@ RUN pip install --no-cache-dir \
     "imageio>=2.37.0" \
     "imageio-ffmpeg>=0.6.0" \
     "safetensors" \
-    "runpod"
+    "runpod" \
+    "boto3>=1.34.0"
 
 COPY handler.py /workspace/handler.py
 
