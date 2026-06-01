@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 
 WORKDIR /workspace
 
@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir \
     "torch>=2.8.0" \
     "torchvision>=0.23.0" \
-    --extra-index-url https://download.pytorch.org/whl/cu121
+    --extra-index-url https://download.pytorch.org/whl/cu124
 
 RUN pip install --no-cache-dir \
     "diffusers>=0.35.2" \
