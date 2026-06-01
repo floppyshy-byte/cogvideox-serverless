@@ -34,9 +34,65 @@ def get_s3_client():
     return s3_client
 
 
+def diagnose_cache():
+    hf_home = os.environ.get("HF_HOME", "/runpod-volume/huggingface-cache")
+    repo_dir = os.path.join(hf_home, "hub", "models--THUDM--CogVideoX-2b")
+    snapshot_dir = os.path.join(repo_dir, "snapshots")
+    refs_dir = os.path.join(repo_dir, "refs")
+
+    print("[cogvideo] === CACHE DIAGNOSTIC ===")
+    print(f"[cogvideo] HF_HOME: {hf_home}")
+
+    if os.path.isdir(hf_home):
+        try:
+            entries = os.listdir(hf_home)
+            print(f"[cogvideo] {hf_home} entries: {entries}")
+        except Exception as e:
+            print(f"[cogvideo] ERROR listing {hf_home}: {e}")
+    else:
+        print(f"[cogvideo] WARNING: {hf_home} does not exist")
+
+    if os.path.isdir(repo_dir):
+        print(f"[cogvideo] Repo dir found: {repo_dir}")
+    else:
+        print(f"[cogvideo] WARNING: repo dir missing: {repo_dir}")
+
+    if os.path.isdir(refs_dir):
+        try:
+            refs = os.listdir(refs_dir)
+            print(f"[cogvideo] refs: {refs}")
+            for ref in refs:
+                ref_path = os.path.join(refs_dir, ref)
+                with open(ref_path, "r") as f:
+                    hash_val = f.read().strip()
+                print(f"[cogvideo] refs/{ref}: {hash_val}")
+        except Exception as e:
+            print(f"[cogvideo] ERROR reading refs: {e}")
+    else:
+        print(f"[cogvideo] WARNING: no refs at {refs_dir}")
+
+    if os.path.isdir(snapshot_dir):
+        try:
+            snaps = os.listdir(snapshot_dir)
+            print(f"[cogvideo] snapshots: {snaps}")
+            for snap in snaps:
+                snap_path = os.path.join(snapshot_dir, snap)
+                if os.path.isdir(snap_path):
+                    files = os.listdir(snap_path)
+                    print(f"[cogvideo] snapshot {snap} files (first 20): {files[:20]}")
+        except Exception as e:
+            print(f"[cogvideo] ERROR listing snapshots: {e}")
+    else:
+        print(f"[cogvideo] WARNING: no snapshots at {snapshot_dir}")
+        print("[cogvideo] RunPod Model Cache not configured or still downloading?")
+
+    print("[cogvideo] === END DIAGNOSTIC ===")
+
+
 def load_pipeline():
     global pipe
     if pipe is None:
+        diagnose_cache()
         print("Loading CogVideoX-2B pipeline...")
         pipe = CogVideoXPipeline.from_pretrained(
             "THUDM/CogVideoX-2b",
