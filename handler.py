@@ -101,7 +101,7 @@ def load_pipeline():
         pipe = CogVideoXPipeline.from_pretrained(
             MODEL_ID,
             torch_dtype=torch.float16,
-            local_files_only=False,
+            local_files_only=True,
         )
         pipe.to("cuda")
         pipe.vae.enable_slicing()
