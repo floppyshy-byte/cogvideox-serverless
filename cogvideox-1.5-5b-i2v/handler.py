@@ -1,5 +1,6 @@
 import os
 import io
+import base64
 import uuid
 import requests
 import runpod
@@ -95,12 +96,20 @@ def diagnose_cache():
     print("[cogvideo] === END DIAGNOSTIC ===")
 
 
-def load_image(image_url):
-    """Download an image from a URL and return a PIL Image."""
-    print(f"[cogvideo] Downloading image from {image_url}")
-    resp = requests.get(image_url, timeout=60)
-    resp.raise_for_status()
-    img = Image.open(io.BytesIO(resp.content))
+def load_image(image_url=None, image_base64=None):
+    """Load an image from a URL or base64-encoded string."""
+    if image_base64:
+        print(f"[cogvideo] Decoding base64 image ({len(image_base64)} chars)")
+        raw = base64.b64decode(image_base64)
+        img = Image.open(io.BytesIO(raw))
+    elif image_url:
+        print(f"[cogvideo] Downloading image from {image_url}")
+        resp = requests.get(image_url, timeout=60)
+        resp.raise_for_status()
+        img = Image.open(io.BytesIO(resp.content))
+    else:
+        raise ValueError("Either image_url or image_base64 is required")
+
     if img.mode != "RGB":
         img = img.convert("RGB")
     print(f"[cogvideo] Image loaded: {img.size}, mode={img.mode}")
@@ -117,9 +126,9 @@ def load_pipeline():
             torch_dtype=torch.bfloat16,
             local_files_only=True,
         )
-        pipe.to("cuda")
         pipe.vae.enable_slicing()
         pipe.vae.enable_tiling()
+        pipe.enable_model_cpu_offload()
         print("Pipeline ready.")
     return pipe
 
@@ -151,6 +160,7 @@ def handler(event):
     job_input = event.get("input", {})
     prompt = job_input.get("prompt", "A beautiful sunset over the ocean")
     image_url = job_input.get("image_url")
+    image_base64 = job_input.get("image_base64")
     num_inference_steps = job_input.get("num_inference_steps", 50)
     guidance_scale = job_input.get("guidance_scale", 6.0)
     num_frames = job_input.get("num_frames", 81)
@@ -159,12 +169,12 @@ def handler(event):
     seed = job_input.get("seed")
     fps = job_input.get("fps", 8)
 
-    if not image_url:
-        return {"error": "image_url is required for I2V"}
+    if not image_url and not image_base64:
+        return {"error": "Either image_url or image_base64 is required for I2V"}
 
     try:
         model = load_pipeline()
-        image = load_image(image_url)
+        image = load_image(image_url=image_url, image_base64=image_base64)
 
         generator = None
         if seed is not None:
@@ -200,7 +210,6 @@ def handler(event):
         return {
             "video_url": video_url,
             "prompt": prompt,
-            "image_url": image_url,
             "seed": seed,
         }
 
