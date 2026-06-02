@@ -22,8 +22,7 @@ RUN pip install --no-cache-dir \
     "imageio-ffmpeg>=0.6.0" \
     "safetensors" \
     "runpod" \
-    "boto3>=1.34.0" \
-    "tiktoken"
+    "boto3>=1.34.0"
 
 COPY handler.py /workspace/handler.py
 
