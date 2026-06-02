@@ -165,9 +165,13 @@ def handler(event):
         )
         video = output.frames[0]
 
-        buf = io.BytesIO()
-        export_to_video(video, buf, fps=fps)
+        tmp_path = f"/tmp/{uuid.uuid4().hex}.mp4"
+        export_to_video(video, tmp_path, fps=fps)
+
+        with open(tmp_path, "rb") as f:
+            buf = io.BytesIO(f.read())
         buf.seek(0)
+        os.remove(tmp_path)
 
         filename = f"{uuid.uuid4().hex}.mp4"
         video_url = upload_video(buf, filename)
