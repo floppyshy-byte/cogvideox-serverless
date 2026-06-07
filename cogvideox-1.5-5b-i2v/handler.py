@@ -180,7 +180,7 @@ def handler(event):
         if seed is not None:
             generator = torch.Generator(device="cuda").manual_seed(int(seed))
 
-        print(f"Generating: prompt='{prompt}', image={image_url}, "
+        print(f"Generating: "
               f"steps={num_inference_steps}, frames={num_frames}, "
               f"{width}x{height}, seed={seed}")
 

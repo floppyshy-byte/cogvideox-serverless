@@ -151,7 +151,7 @@ def handler(event):
         if seed is not None:
             generator = torch.Generator(device="cuda").manual_seed(int(seed))
 
-        print(f"Generating: prompt='{prompt}', steps={num_inference_steps}, "
+        print(f"Generating: steps={num_inference_steps}, "
               f"frames={num_frames}, {width}x{height}, seed={seed}")
 
         output = model(
