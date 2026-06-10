@@ -23,7 +23,8 @@ RUN pip install --no-cache-dir \
     "safetensors" \
     "runpod" \
     "boto3>=1.34.0" \
-    "protobuf"
+    "protobuf" \
+    "cryptography"
 
 COPY handler.py /workspace/handler.py
 

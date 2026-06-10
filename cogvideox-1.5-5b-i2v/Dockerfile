@@ -25,7 +25,8 @@ RUN pip install --no-cache-dir \
     "boto3>=1.34.0" \
     "protobuf" \
     "pillow" \
-    "requests"
+    "requests" \
+    "cryptography"
 
 COPY handler.py /workspace/handler.py
 

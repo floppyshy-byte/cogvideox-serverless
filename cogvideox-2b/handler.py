@@ -1,9 +1,13 @@
-import os
+import base64
 import io
+import json
+import os
+import secrets
 import uuid
+
+import boto3
 import runpod
 import torch
-import boto3
 from botocore.exceptions import ClientError
 from diffusers import CogVideoXPipeline
 from diffusers.utils import export_to_video
@@ -21,8 +25,33 @@ S3_KEY_PREFIX = os.environ.get("S3_KEY_PREFIX", "cogvideo-output/")
 S3_EXPIRATION = int(os.environ.get("S3_URL_EXPIRATION", "3600"))
 USE_PRESIGNED = os.environ.get("S3_USE_PRESIGNED", "true").lower() == "true"
 
+# AES-256-GCM encryption
+_ENCRYPTION_KEY: bytes | None = None
+_RAW_KEY = os.getenv("COMFY_ENCRYPTION_KEY", "")
+if _RAW_KEY:
+    _key_bytes = bytes.fromhex(_RAW_KEY)
+    if len(_key_bytes) != 32:
+        raise RuntimeError(
+            "COMFY_ENCRYPTION_KEY must be 64 hex characters (32 bytes)"
+        )
+    _ENCRYPTION_KEY = _key_bytes
+
 pipe = None
 s3_client = None
+
+
+def _aes_decrypt(encoded: str) -> bytes:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    data = base64.b64decode(encoded)
+    nonce, ciphertext = data[:12], data[12:]
+    return AESGCM(_ENCRYPTION_KEY).decrypt(nonce, ciphertext, None)
+
+
+def _aes_encrypt(plaintext: bytes) -> str:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    nonce = secrets.token_bytes(12)
+    ciphertext = AESGCM(_ENCRYPTION_KEY).encrypt(nonce, plaintext, None)
+    return base64.b64encode(nonce + ciphertext).decode()
 
 
 def get_s3_client():
@@ -135,7 +164,30 @@ def upload_video(buf, filename):
 
 def handler(event):
     job_input = event.get("input", {})
+
+    encryption_enabled = (
+        job_input.get("encryption") is True or "encrypted" in job_input
+    )
+    if encryption_enabled and not _ENCRYPTION_KEY:
+        return {
+            "error": "Encryption is enabled but COMFY_ENCRYPTION_KEY is not set"
+        }
+
+    if "encrypted" in job_input:
+        try:
+            job_input = json.loads(_aes_decrypt(job_input["encrypted"]))
+        except Exception as exc:
+            return {"error": f"Failed to decrypt job input: {exc}"}
+
     prompt = job_input.get("prompt", "A beautiful sunset over the ocean")
+
+    encrypted_prompt = job_input.get("encrypted_prompt")
+    if encryption_enabled and encrypted_prompt:
+        try:
+            prompt = _aes_decrypt(encrypted_prompt).decode("utf-8")
+        except Exception as exc:
+            return {"error": f"Failed to decrypt prompt: {exc}"}
+
     num_inference_steps = job_input.get("num_inference_steps", 50)
     guidance_scale = job_input.get("guidance_scale", 6.0)
     num_frames = job_input.get("num_frames", 49)
@@ -169,25 +221,27 @@ def handler(event):
         export_to_video(video, tmp_path, fps=fps)
 
         with open(tmp_path, "rb") as f:
-            buf = io.BytesIO(f.read())
-        buf.seek(0)
+            file_bytes = f.read()
         os.remove(tmp_path)
+
+        if encryption_enabled:
+            encrypted = _aes_encrypt(file_bytes)
+            buf = io.BytesIO(encrypted.encode())
+        else:
+            buf = io.BytesIO(file_bytes)
+        buf.seek(0)
 
         filename = f"{uuid.uuid4().hex}.mp4"
         video_url = upload_video(buf, filename)
 
-        return {
-            "video_url": video_url,
-            "prompt": prompt,
-            "seed": seed,
-        }
+        result = {"video_url": video_url, "prompt": prompt, "seed": seed}
+        if encryption_enabled:
+            result["encrypted"] = True
+        return result
 
     except Exception as e:
         print(f"Generation failed: {e}")
-        return {
-            "error": str(e),
-            "prompt": prompt,
-        }
+        return {"error": str(e), "prompt": prompt}
 
 
 runpod.serverless.start({"handler": handler})
